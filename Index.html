@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; background:#f6f7f9; }
+      .wrap { max-width: 520px; margin: 24px auto; padding: 16px; }
+      .card { background:#fff; border-radius: 14px; padding: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+      h1 { font-size: 18px; margin: 0 0 12px; }
+      .muted { color:#666; font-size: 12px; margin-bottom: 12px; }
+      label { display:block; font-size: 12px; color:#333; margin-top: 10px; }
+      input { width:100%; padding: 10px 12px; font-size: 14px; border:1px solid #ddd; border-radius: 10px; outline:none; }
+      input:focus { border-color:#999; }
+      .row { display:flex; gap:10px; margin-top: 12px; }
+      button { flex:1; padding: 11px 12px; font-size: 14px; border:0; border-radius: 10px; cursor:pointer; }
+      .primary { background:#111; color:#fff; }
+      .ghost { background:#eee; }
+      .pill { display:inline-block; padding: 6px 10px; border-radius: 999px; background:#eee; font-size: 12px; }
+      .err { color:#b00020; font-size: 13px; margin-top: 10px; }
+      .ok { color:#0a7a28; font-size: 13px; margin-top: 10px; }
+      .top { display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; }
+      .kv { font-size: 13px; margin-top: 8px; }
+      .kv b { display:inline-block; min-width: 90px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card" id="screenLogin" style="display:none;">
+        <div class="top">
+          <h1>🔐 Вход</h1>
+          <span class="pill">Пилот</span>
+        </div>
+        <div class="muted">Логин/пароль хранятся в Google Sheets (пароль — в виде хэша). Сессия запоминается в браузере.</div>
+
+        <label>Логин</label>
+        <input id="login" autocomplete="username" />
+
+        <label>Пароль</label>
+        <input id="password" type="password" autocomplete="current-password" />
+
+        <div class="row">
+          <button class="primary" onclick="login()">Войти</button>
+          <button class="ghost" onclick="clearSaved()">Сбросить</button>
+        </div>
+
+        <div id="msgLogin" class="err" style="display:none;"></div>
+      </div>
+
+      <div class="card" id="screenAuthed" style="display:none;">
+        <div class="top">
+          <h1>✅ Вы вошли</h1>
+          <button class="ghost" style="flex:0; padding:8px 10px;" onclick="logout()">Выйти</button>
+        </div>
+        <div class="kv"><b>Сотрудник:</b> <span id="uName"></span></div>
+        <div class="kv"><b>Роль:</b> <span id="uRole"></span></div>
+        <div class="kv"><b>Участок:</b> <span id="uArea"></span></div>
+
+        <hr style="border:0;border-top:1px solid #eee;margin:14px 0;" />
+
+        <div class="muted">
+          Следующий шаг: добавить экран “Скан изделия + кнопка операции” и писать события в лист <b>СОБЫТИЯ</b>.
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const LS_TOKEN_KEY = 'pilot_session_token_v1';
+
+      function setMsg(elId, text, ok=false) {
+        const el = document.getElementById(elId);
+        el.style.display = 'block';
+        el.className = ok ? 'ok' : 'err';
+        el.textContent = text;
+      }
+      function hideMsg(elId) {
+        const el = document.getElementById(elId);
+        el.style.display = 'none';
+        el.textContent = '';
+      }
+
+      function show(screenId) {
+        document.getElementById('screenLogin').style.display = 'none';
+        document.getElementById('screenAuthed').style.display = 'none';
+        document.getElementById(screenId).style.display = 'block';
+      }
+
+      function getSavedToken() {
+        try { return localStorage.getItem(LS_TOKEN_KEY) || ''; } catch(e) { return ''; }
+      }
+      function saveToken(token) {
+        try { localStorage.setItem(LS_TOKEN_KEY, token); } catch(e) {}
+      }
+      function clearSaved() {
+        try { localStorage.removeItem(LS_TOKEN_KEY); } catch(e) {}
+        setMsg('msgLogin', 'Сохранённая сессия удалена.', true);
+      }
+
+      function bootstrap() {
+        const token = getSavedToken();
+        google.script.run
+          .withSuccessHandler(res => {
+            if (!res || !res.ok) { show('screenLogin'); return; }
+            if (res.auth && res.auth.isAuthed) {
+              saveToken(res.auth.token);
+              renderUser(res.auth.user);
+              show('screenAuthed');
+              return;
+            }
+            show('screenLogin');
+            setTimeout(() => document.getElementById('login').focus(), 50);
+          })
+          .withFailureHandler(err => {
+            show('screenLogin');
+            setMsg('msgLogin', 'Ошибка связи: ' + (err && err.message ? err.message : err));
+          })
+          .apiBootstrap({ token });
+      }
+
+      function login() {
+        hideMsg('msgLogin');
+        const login = document.getElementById('login').value.trim();
+        const password = document.getElementById('password').value;
+
+        if (!login || !password) {
+          setMsg('msgLogin', 'Введите логин и пароль.');
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(res => {
+            if (!res || !res.ok) {
+              setMsg('msgLogin', (res && res.error) ? res.error : 'Ошибка входа');
+              return;
+            }
+            saveToken(res.token);
+            renderUser(res.user);
+            show('screenAuthed');
+          })
+          .withFailureHandler(err => {
+            setMsg('msgLogin', 'Ошибка: ' + (err && err.message ? err.message : err));
+          })
+          .apiLogin({ login, password });
+      }
+
+      function logout() {
+        const token = getSavedToken();
+        try { localStorage.removeItem(LS_TOKEN_KEY); } catch(e) {}
+
+        google.script.run
+          .withSuccessHandler(() => {
+            show('screenLogin');
+            document.getElementById('password').value = '';
+            setTimeout(() => document.getElementById('login').focus(), 50);
+          })
+          .withFailureHandler(() => {
+            show('screenLogin');
+          })
+          .apiLogout({ token });
+      }
+
+      function renderUser(u) {
+        document.getElementById('uName').textContent = u && u.name ? u.name : '';
+        document.getElementById('uRole').textContent = u && u.role ? u.role : '';
+        document.getElementById('uArea').textContent = u && u.area ? u.area : '';
+      }
+
+      bootstrap();
+    </script>
+  </body>
+</html>
