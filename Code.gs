@@ -125,6 +125,48 @@ function apiLogout(payload) {
   return { ok: true };
 }
 
+function apiGetStaff(payload) {
+  ensureSheets_();
+  const token = payload && payload.token ? String(payload.token) : '';
+  if (!token) return { ok: false, error: 'Нет сессии.' };
+
+  const session = validateSession_(token);
+  if (!session) return { ok: false, error: 'Сессия недействительна.' };
+
+  const user = getUserById_(session.user_id);
+  if (!user || String(user.is_active).toUpperCase() !== 'TRUE') {
+    return { ok: false, error: 'Пользователь неактивен.' };
+  }
+
+  if (String(user.role || '').trim() !== 'Начальник') {
+    return { ok: false, error: 'Недостаточно прав.' };
+  }
+
+  const users = getAllUsers_();
+  const sessions = getActiveSessionsByUser_();
+
+  const staff = users.map(u => {
+    const sessionInfo = sessions[u.user_id] || null;
+    return {
+      user_id: u.user_id,
+      name: u.name,
+      area: u.area,
+      is_active: sessionInfo ? true : false,
+      session_started_at: sessionInfo ? sessionInfo.created_at : '',
+      last_login_at: u.last_login_at
+    };
+  });
+
+  const active = staff
+    .filter(s => s.is_active)
+    .sort((a, b) => dateValue_(b.session_started_at) - dateValue_(a.session_started_at));
+  const inactive = staff
+    .filter(s => !s.is_active)
+    .sort((a, b) => dateValue_(b.last_login_at) - dateValue_(a.last_login_at));
+
+  return { ok: true, active, inactive };
+}
+
 // ====== ADMIN HELPERS (run manually from Script Editor) ======
 function adminCreateUser(login, password, name, role, area) {
   ensureSheets_();
@@ -240,6 +282,54 @@ function rowToUser_(row, idx) {
     created_at: String(row[idx['created_at']] || ''),
     last_login_at: String(row[idx['last_login_at']] || '')
   };
+}
+
+function getAllUsers_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_USERS);
+  const values = sh.getDataRange().getValues();
+  const header = values[0];
+  const idx = indexMap_(header);
+  const users = [];
+
+  for (let i = 1; i < values.length; i++) {
+    users.push(rowToUser_(values[i], idx));
+  }
+  return users;
+}
+
+function getActiveSessionsByUser_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_SESSIONS);
+  const values = sh.getDataRange().getValues();
+  const header = values[0];
+  const idx = indexMap_(header);
+  const now = new Date();
+  const map = {};
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const revoked = String(row[idx.revoked]) === 'TRUE';
+    if (revoked) continue;
+
+    const expiresAt = new Date(String(row[idx.expires_at]));
+    if (!(expiresAt instanceof Date) || isNaN(expiresAt.getTime())) continue;
+    if (expiresAt.getTime() <= now.getTime()) continue;
+
+    const userId = String(row[idx.user_id]);
+    const createdAt = String(row[idx.created_at]);
+    const existing = map[userId];
+    if (!existing || dateValue_(createdAt) > dateValue_(existing.created_at)) {
+      map[userId] = { created_at: createdAt };
+    }
+  }
+
+  return map;
+}
+
+function dateValue_(value) {
+  if (!value) return 0;
+  const date = new Date(String(value));
+  if (!(date instanceof Date) || isNaN(date.getTime())) return 0;
+  return date.getTime();
 }
 
 

@@ -12,7 +12,7 @@
       label { display:block; font-size: 12px; color:#333; margin-top: 10px; }
       input { width:100%; padding: 10px 12px; font-size: 14px; border:1px solid #ddd; border-radius: 10px; outline:none; }
       input:focus { border-color:#999; }
-      .row { display:flex; gap:10px; margin-top: 12px; }
+      .row { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
       button { flex:1; padding: 11px 12px; font-size: 14px; border:0; border-radius: 10px; cursor:pointer; }
       .primary { background:#111; color:#fff; }
       .ghost { background:#eee; }
@@ -22,6 +22,13 @@
       .top { display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; }
       .kv { font-size: 13px; margin-top: 8px; }
       .kv b { display:inline-block; min-width: 90px; }
+      .menu { display:flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+      .menu button { width: 100%; text-align: left; }
+      .section-title { font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
+      .staff-list { list-style: none; padding: 0; margin: 0; }
+      .staff-item { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+      .staff-item:last-child { border-bottom: 0; }
+      .staff-meta { color: #666; font-size: 12px; margin-top: 4px; }
     </style>
   </head>
   <body>
@@ -62,6 +69,30 @@
           Следующий шаг: добавить экран “Скан изделия + кнопка операции” и писать события в лист <b>СОБЫТИЯ</b>.
         </div>
       </div>
+
+      <div class="card" id="screenBossMenu" style="display:none;">
+        <div class="top">
+          <h1>🧭 Главное меню</h1>
+          <button class="ghost" style="flex:0; padding:8px 10px;" onclick="logout()">Выйти</button>
+        </div>
+        <div class="kv"><b>Начальник:</b> <span id="bossName"></span></div>
+        <div class="menu">
+          <button class="primary" onclick="openPersonnel()">Персонал</button>
+        </div>
+      </div>
+
+      <div class="card" id="screenBossPersonnel" style="display:none;">
+        <div class="top">
+          <h1>👥 Персонал</h1>
+          <button class="ghost" style="flex:0; padding:8px 10px;" onclick="show('screenBossMenu')">Назад</button>
+        </div>
+        <div class="muted">Сначала отображаются активные сессии, затем неактивные пользователи.</div>
+        <div id="staffError" class="err" style="display:none;"></div>
+        <div class="section-title">Активные</div>
+        <ul class="staff-list" id="staffActive"></ul>
+        <div class="section-title">Неактивные</div>
+        <ul class="staff-list" id="staffInactive"></ul>
+      </div>
     </div>
 
     <script>
@@ -82,6 +113,8 @@
       function show(screenId) {
         document.getElementById('screenLogin').style.display = 'none';
         document.getElementById('screenAuthed').style.display = 'none';
+        document.getElementById('screenBossMenu').style.display = 'none';
+        document.getElementById('screenBossPersonnel').style.display = 'none';
         document.getElementById(screenId).style.display = 'block';
       }
 
@@ -104,7 +137,7 @@
             if (res.auth && res.auth.isAuthed) {
               saveToken(res.auth.token);
               renderUser(res.auth.user);
-              show('screenAuthed');
+              showAuthedScreen(res.auth.user);
               return;
             }
             show('screenLogin');
@@ -135,7 +168,7 @@
             }
             saveToken(res.token);
             renderUser(res.user);
-            show('screenAuthed');
+            showAuthedScreen(res.user);
           })
           .withFailureHandler(err => {
             setMsg('msgLogin', 'Ошибка: ' + (err && err.message ? err.message : err));
@@ -163,6 +196,75 @@
         document.getElementById('uName').textContent = u && u.name ? u.name : '';
         document.getElementById('uRole').textContent = u && u.role ? u.role : '';
         document.getElementById('uArea').textContent = u && u.area ? u.area : '';
+      }
+
+      function showAuthedScreen(u) {
+        const role = (u && u.role) ? String(u.role).trim() : '';
+        if (role === 'Начальник') {
+          document.getElementById('bossName').textContent = u && u.name ? u.name : '';
+          show('screenBossMenu');
+          return;
+        }
+        show('screenAuthed');
+      }
+
+      function openPersonnel() {
+        hideMsg('staffError');
+        show('screenBossPersonnel');
+        loadStaff();
+      }
+
+      function loadStaff() {
+        const token = getSavedToken();
+        google.script.run
+          .withSuccessHandler(res => {
+            if (!res || !res.ok) {
+              setMsg('staffError', (res && res.error) ? res.error : 'Не удалось загрузить персонал.');
+              return;
+            }
+            renderStaffList('staffActive', res.active || [], true);
+            renderStaffList('staffInactive', res.inactive || [], false);
+          })
+          .withFailureHandler(err => {
+            setMsg('staffError', 'Ошибка связи: ' + (err && err.message ? err.message : err));
+          })
+          .apiGetStaff({ token });
+      }
+
+      function renderStaffList(elId, list, isActive) {
+        const el = document.getElementById(elId);
+        el.innerHTML = '';
+        if (!list.length) {
+          const li = document.createElement('li');
+          li.className = 'staff-item';
+          li.textContent = isActive ? 'Нет активных сессий.' : 'Нет данных.';
+          el.appendChild(li);
+          return;
+        }
+
+        list.forEach(item => {
+          const li = document.createElement('li');
+          li.className = 'staff-item';
+          const title = document.createElement('div');
+          title.textContent = item.name || 'Без имени';
+          const meta = document.createElement('div');
+          const area = item.area ? `Участок: ${item.area}` : 'Участок: —';
+          const time = isActive ? item.session_started_at : item.last_login_at;
+          const timeLabel = isActive ? 'Авторизация' : 'Последний вход';
+          meta.className = 'staff-meta';
+          meta.textContent = `${area} · ${timeLabel}: ${formatDateTime(time)}`;
+          li.appendChild(title);
+          li.appendChild(meta);
+          el.appendChild(li);
+        });
+      }
+
+      function formatDateTime(value) {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '—';
+        const pad = num => String(num).padStart(2, '0');
+        return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
       }
 
       bootstrap();
