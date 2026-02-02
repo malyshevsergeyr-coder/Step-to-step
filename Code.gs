@@ -664,6 +664,35 @@ function bytesToHex_(bytes) {
   return bytes.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
 }
 
+function saveChatAttachment_(attachment) {
+  const data = String(attachment.data || '');
+  if (!data) return '';
+
+  const parsed = parseDataUrl_(data);
+  if (!parsed || !parsed.bytes) return '';
+
+  const folder = getOrCreateFolder_(CHAT_UPLOADS_FOLDER);
+  const name = attachment.name ? String(attachment.name) : ('chat_' + Date.now() + '.bin');
+  const type = attachment.type ? String(attachment.type) : parsed.mimeType || 'application/octet-stream';
+  const blob = Utilities.newBlob(parsed.bytes, type, name);
+  const file = folder.createFile(blob);
+  return file.getUrl();
+}
+
+function parseDataUrl_(dataUrl) {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
+  if (!match) return null;
+  const mimeType = match[1];
+  const bytes = Utilities.base64Decode(match[2]);
+  return { mimeType, bytes };
+}
+
+function getOrCreateFolder_(name) {
+  const folders = DriveApp.getFoldersByName(name);
+  if (folders.hasNext()) return folders.next();
+  return DriveApp.createFolder(name);
+}
+
 function newToken_() {
   // UUID + timestamp mix
   return Utilities.getUuid().replace(/-/g, '') + '_' + Date.now().toString(36);
