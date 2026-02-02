@@ -1,6 +1,8 @@
 // ====== CONFIG ======
 const SHEET_USERS = 'users';
 const SHEET_SESSIONS = 'sessions';
+const SHEET_CHAT = 'chat_messages';
+const CHAT_UPLOADS_FOLDER = 'ChatUploads';
 const SESSION_TTL_HOURS = 72; // "запоминать" на 3 суток для пилота
 const HASH_ALGO = 'SHA_256';
 
@@ -167,6 +169,102 @@ function apiGetStaff(payload) {
   return { ok: true, active, inactive };
 }
 
+function apiGetChatMessages(payload) {
+  ensureSheets_();
+  const token = payload && payload.token ? String(payload.token) : '';
+  const chatId = payload && payload.chat_id ? String(payload.chat_id) : 'default';
+  if (!token) return { ok: false, error: 'Нет сессии.' };
+
+  const session = validateSession_(token);
+  if (!session) return { ok: false, error: 'Сессия недействительна.' };
+
+  const user = getUserById_(session.user_id);
+  if (!user || String(user.is_active).toUpperCase() !== 'TRUE') {
+    return { ok: false, error: 'Пользователь неактивен.' };
+  }
+
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_CHAT);
+  const values = sh.getDataRange().getValues();
+  const header = values[0];
+  const idx = indexMap_(header);
+  const messages = [];
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (String(row[idx.chat_id]) !== chatId) continue;
+    messages.push({
+      message_id: String(row[idx.message_id]),
+      chat_id: String(row[idx.chat_id]),
+      user_id: String(row[idx.user_id]),
+      user_name: String(row[idx.user_name]),
+      text: String(row[idx.text]),
+      attachment_url: String(row[idx.attachment_url]),
+      created_at: String(row[idx.created_at]),
+      delivered_at: String(row[idx.delivered_at]),
+      read_at: String(row[idx.read_at])
+    });
+  }
+
+  messages.sort((a, b) => dateValue_(a.created_at) - dateValue_(b.created_at));
+
+  let hasUpdates = false;
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (String(row[idx.chat_id]) !== chatId) continue;
+    if (String(row[idx.user_id]) === user.user_id) continue;
+    const readAt = String(row[idx.read_at]);
+    if (!readAt) {
+      sh.getRange(i + 1, idx.read_at + 1).setValue(iso_(new Date()));
+      hasUpdates = true;
+    }
+  }
+
+  return { ok: true, messages, updated_at: iso_(new Date()), updated_rows: hasUpdates };
+}
+
+function apiSendChatMessage(payload) {
+  ensureSheets_();
+  const token = payload && payload.token ? String(payload.token) : '';
+  const chatId = payload && payload.chat_id ? String(payload.chat_id) : 'default';
+  const text = payload && payload.text ? String(payload.text) : '';
+  const attachment = payload && payload.attachment ? payload.attachment : null;
+  if (!token) return { ok: false, error: 'Нет сессии.' };
+
+  const session = validateSession_(token);
+  if (!session) return { ok: false, error: 'Сессия недействительна.' };
+
+  const user = getUserById_(session.user_id);
+  if (!user || String(user.is_active).toUpperCase() !== 'TRUE') {
+    return { ok: false, error: 'Пользователь неактивен.' };
+  }
+
+  if (!text && !attachment) {
+    return { ok: false, error: 'Введите сообщение или прикрепите файл.' };
+  }
+
+  let attachmentUrl = '';
+  if (attachment && attachment.data) {
+    attachmentUrl = saveChatAttachment_(attachment);
+  }
+
+  const sh = SpreadsheetApp.getActive().getSheetByName(SHEET_CHAT);
+  const now = new Date();
+  const messageId = 'M' + Utilities.getUuid().replace(/-/g, '').slice(0, 12);
+  sh.appendRow([
+    messageId,
+    chatId,
+    user.user_id,
+    user.name,
+    text,
+    attachmentUrl,
+    iso_(now),
+    iso_(now),
+    ''
+  ]);
+
+  return apiGetChatMessages({ token, chat_id: chatId });
+}
+
 // ====== ADMIN HELPERS (run manually from Script Editor) ======
 function adminCreateUser(login, password, name, role, area) {
   ensureSheets_();
@@ -225,6 +323,8 @@ function ensureSheets_() {
   if (!shU) shU = ss.insertSheet(SHEET_USERS);
   let shS = ss.getSheetByName(SHEET_SESSIONS);
   if (!shS) shS = ss.insertSheet(SHEET_SESSIONS);
+  let shC = ss.getSheetByName(SHEET_CHAT);
+  if (!shC) shC = ss.insertSheet(SHEET_CHAT);
 
   if (shU.getLastRow() === 0) {
     shU.appendRow([
@@ -235,6 +335,41 @@ function ensureSheets_() {
     shS.appendRow([
       'token','user_id','created_at','expires_at','last_seen_at','revoked'
     ]);
+  }
+  if (shC.getLastRow() === 0) {
+    shC.appendRow([
+      'message_id','chat_id','user_id','user_name','text','attachment_url','created_at','delivered_at','read_at'
+    ]);
+  }
+}
+
+function onEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    const range = e.range;
+    const sheet = range.getSheet();
+    if (sheet.getName() !== SHEET_USERS) return;
+    if (range.getRow() < 2) return;
+
+    const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const idx = indexMap_(header);
+    if (idx.user_id == null || idx.created_at == null || idx.login == null) return;
+
+    const row = range.getRow();
+    const loginValue = sheet.getRange(row, idx.login + 1).getValue();
+    if (!loginValue) return;
+
+    const userIdCell = sheet.getRange(row, idx.user_id + 1);
+    if (!userIdCell.getValue()) {
+      userIdCell.setValue('U' + Utilities.getUuid().replace(/-/g, '').slice(0, 12));
+    }
+
+    const createdAtCell = sheet.getRange(row, idx.created_at + 1);
+    if (!createdAtCell.getValue()) {
+      createdAtCell.setValue(iso_(new Date()));
+    }
+  } catch (err) {
+    Logger.log('onEdit error: ' + err);
   }
 }
 
@@ -363,6 +498,35 @@ function hashPassword_(password, salt) {
 
 function bytesToHex_(bytes) {
   return bytes.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+}
+
+function saveChatAttachment_(attachment) {
+  const data = String(attachment.data || '');
+  if (!data) return '';
+
+  const parsed = parseDataUrl_(data);
+  if (!parsed || !parsed.bytes) return '';
+
+  const folder = getOrCreateFolder_(CHAT_UPLOADS_FOLDER);
+  const name = attachment.name ? String(attachment.name) : ('chat_' + Date.now() + '.bin');
+  const type = attachment.type ? String(attachment.type) : parsed.mimeType || 'application/octet-stream';
+  const blob = Utilities.newBlob(parsed.bytes, type, name);
+  const file = folder.createFile(blob);
+  return file.getUrl();
+}
+
+function parseDataUrl_(dataUrl) {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
+  if (!match) return null;
+  const mimeType = match[1];
+  const bytes = Utilities.base64Decode(match[2]);
+  return { mimeType, bytes };
+}
+
+function getOrCreateFolder_(name) {
+  const folders = DriveApp.getFoldersByName(name);
+  if (folders.hasNext()) return folders.next();
+  return DriveApp.createFolder(name);
 }
 
 function newToken_() {
