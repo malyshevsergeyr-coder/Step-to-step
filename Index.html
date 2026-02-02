@@ -4,13 +4,16 @@
     <base target="_top">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      body { font-family: Arial, sans-serif; margin: 0; background:#f6f7f9; }
-      .wrap { max-width: 520px; margin: 24px auto; padding: 16px; }
+      html, body { height: 100%; }
+      body { font-family: Arial, sans-serif; margin: 0; background:#f6f7f9; color: #111; }
+      .wrap { max-width: 1200px; margin: 24px auto; padding: 16px; }
       .card { background:#fff; border-radius: 14px; padding: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+      .card--narrow { max-width: 520px; margin: 0 auto; }
+      .card--flat { padding: 0; }
       h1 { font-size: 18px; margin: 0 0 12px; }
       .muted { color:#666; font-size: 12px; margin-bottom: 12px; }
       label { display:block; font-size: 12px; color:#333; margin-top: 10px; }
-      input { width:100%; padding: 10px 12px; font-size: 14px; border:1px solid #ddd; border-radius: 10px; outline:none; }
+      input, select, textarea { width:100%; padding: 10px 12px; font-size: 14px; border:1px solid #ddd; border-radius: 10px; outline:none; font-family: inherit; box-sizing: border-box; }
       input:focus { border-color:#999; }
       .row { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
       button { flex:1; padding: 11px 12px; font-size: 14px; border:0; border-radius: 10px; cursor:pointer; }
@@ -29,11 +32,62 @@
       .staff-item { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 13px; }
       .staff-item:last-child { border-bottom: 0; }
       .staff-meta { color: #666; font-size: 12px; margin-top: 4px; }
+
+      .app-shell { display: grid; grid-template-columns: 240px 1fr 320px; gap: 16px; min-height: 640px; }
+      .sidebar { background: #fdfdfd; border: 1px solid #eee; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+      .sidebar .user-card { background: #f3f4f6; border-radius: 12px; padding: 12px; }
+      .sidebar .user-card .name { font-weight: 600; font-size: 14px; }
+      .sidebar .user-card .meta { color: #666; font-size: 12px; margin-top: 4px; }
+      .sidebar .menu button { background: #f1f2f4; border: 1px solid transparent; }
+      .sidebar .menu button.is-active { background: #111; color: #fff; }
+      .content { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+      .content-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .content-header h1 { margin: 0; }
+      .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+      .form-grid .full { grid-column: 1 / -1; }
+      .form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+      .form-actions button { flex: 0 0 auto; }
+
+      .chat-panel { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 0; display: flex; flex-direction: column; max-height: 640px; transition: all 0.2s ease; }
+      .chat-panel.minimized { height: 54px; overflow: hidden; }
+      .chat-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eee; cursor: pointer; }
+      .chat-header h2 { margin: 0; font-size: 15px; }
+      .chat-messages { padding: 12px 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; background: #fafafa; }
+      .chat-message { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 10px 12px; max-width: 90%; }
+      .chat-message.is-own { align-self: flex-end; background: #111; color: #fff; }
+      .chat-message .meta { font-size: 11px; color: #666; margin-top: 6px; }
+      .chat-message.is-own .meta { color: #d1d1d1; }
+      .chat-message img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+      .chat-input { border-top: 1px solid #eee; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+      .chat-input textarea { resize: vertical; min-height: 88px; }
+      .chat-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .attach-btn { display: inline-flex; align-items: center; gap: 6px; background: #f1f2f4; padding: 8px 10px; border-radius: 10px; cursor: pointer; border: 1px solid #e3e4e8; font-size: 13px; }
+      .attach-btn input { display: none; }
+      .attach-icon { display: inline-flex; width: 18px; height: 18px; }
+      .status-pill { font-size: 11px; color: #666; background: #f1f2f4; padding: 4px 8px; border-radius: 999px; }
+
+      @media (max-width: 1100px) {
+        .app-shell { grid-template-columns: 200px 1fr; }
+        .chat-panel { grid-column: 1 / -1; max-height: 420px; }
+      }
+      @media (max-width: 900px) {
+        .app-shell { grid-template-columns: 1fr; }
+        .sidebar { order: 1; }
+        .content { order: 2; }
+        .chat-panel { order: 3; }
+        .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 640px) {
+        .wrap { margin: 12px auto; padding: 12px; }
+        .form-grid { grid-template-columns: 1fr; }
+        .chat-input textarea { min-height: 120px; }
+        .content-header { flex-direction: column; align-items: flex-start; }
+      }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <div class="card" id="screenLogin" style="display:none;">
+      <div class="card card--narrow" id="screenLogin" style="display:none;">
         <div class="top">
           <h1>🔐 Вход</h1>
           <span class="pill">Пилот</span>
@@ -54,23 +108,129 @@
         <div id="msgLogin" class="err" style="display:none;"></div>
       </div>
 
-      <div class="card" id="screenAuthed" style="display:none;">
-        <div class="top">
-          <h1>✅ Вы вошли</h1>
-          <button class="ghost" style="flex:0; padding:8px 10px;" onclick="logout()">Выйти</button>
-        </div>
-        <div class="kv"><b>Сотрудник:</b> <span id="uName"></span></div>
-        <div class="kv"><b>Роль:</b> <span id="uRole"></span></div>
-        <div class="kv"><b>Участок:</b> <span id="uArea"></span></div>
+      <div class="card card--flat" id="screenAuthed" style="display:none;">
+        <div class="app-shell">
+          <aside class="sidebar">
+            <div class="user-card">
+              <div class="name" id="uName"></div>
+              <div class="meta">Роль: <span id="uRole"></span></div>
+              <div class="meta">Участок: <span id="uArea"></span></div>
+            </div>
+            <div>
+              <div class="section-title">Меню заявок</div>
+              <div class="menu" id="orderMenu">
+                <button class="menu-btn is-active" data-order="cut-1">Задание на раскрой 1</button>
+                <button class="menu-btn" data-order="cut-2">Задание на раскрой 2</button>
+                <button class="menu-btn" data-order="assembly">Сборка</button>
+                <button class="menu-btn" data-order="pack">Упаковка</button>
+              </div>
+            </div>
+            <button class="ghost" onclick="logout()">Выйти</button>
+          </aside>
 
-        <hr style="border:0;border-top:1px solid #eee;margin:14px 0;" />
+          <main class="content">
+            <div class="content-header">
+              <div>
+                <h1 id="orderTitle">Заявка: Задание на раскрой 1</h1>
+                <div class="muted" id="orderSubtitle">Обновите параметры заявки и сохраните изменения.</div>
+              </div>
+              <span class="status-pill" id="orderStatus">Статус: в работе</span>
+            </div>
+            <form class="form-grid" id="orderForm" onsubmit="event.preventDefault();">
+              <div>
+                <label>Номер изделия</label>
+                <input id="orderProductId" placeholder="PR-0001" />
+              </div>
+              <div>
+                <label>Направление</label>
+                <select id="orderDirection">
+                  <option value="front">Лицо</option>
+                  <option value="back">Оборот</option>
+                </select>
+              </div>
+              <div>
+                <label>Процесс</label>
+                <select id="orderProcess">
+                  <option value="cut">Раскрой</option>
+                  <option value="assembly">Сборка</option>
+                  <option value="pack">Упаковка</option>
+                </select>
+              </div>
+              <div>
+                <label>Ширина (мм)</label>
+                <input id="orderWidth" type="number" min="0" step="1" />
+              </div>
+              <div>
+                <label>Высота (мм)</label>
+                <input id="orderHeight" type="number" min="0" step="1" />
+              </div>
+              <div>
+                <label>Количество</label>
+                <input id="orderQuantity" type="number" min="1" step="1" />
+              </div>
+              <div class="full">
+                <label>Формула</label>
+                <input id="orderFormula" placeholder="((ширина+припуск)*кол-во)" />
+              </div>
+              <div>
+                <label>Печать</label>
+                <select id="orderPrint">
+                  <option value="yes">Да</option>
+                  <option value="no">Нет</option>
+                </select>
+              </div>
+              <div>
+                <label>Стикер</label>
+                <select id="orderSticker">
+                  <option value="yes">Да</option>
+                  <option value="no">Нет</option>
+                </select>
+              </div>
+              <div>
+                <label>Ручной режим</label>
+                <select id="orderManual">
+                  <option value="no">Нет</option>
+                  <option value="yes">Да</option>
+                </select>
+              </div>
+              <div class="full">
+                <label>Припуск</label>
+                <textarea id="orderAllowance" rows="3" placeholder="Добавьте заметки по припускам."></textarea>
+              </div>
+            </form>
+            <div class="form-actions">
+              <button class="ghost" onclick="resetOrderForm()">Сбросить</button>
+              <button class="primary" onclick="saveOrder()">Сохранить</button>
+            </div>
+          </main>
 
-        <div class="muted">
-          Следующий шаг: добавить экран “Скан изделия + кнопка операции” и писать события в лист <b>СОБЫТИЯ</b>.
+          <section class="chat-panel" id="chatPanel">
+            <div class="chat-header" id="chatHeader">
+              <h2>Чат заявки</h2>
+              <span class="status-pill" id="chatStatus">Обновлено только что</span>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input">
+              <textarea id="chatInput" placeholder="Напишите сообщение..."></textarea>
+              <div class="chat-actions">
+                <label class="attach-btn" title="Прикрепить фото">
+                  <input type="file" id="chatFile" accept="image/*" />
+                  <span class="attach-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21.44 11.05l-8.49 8.49a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 114.95 4.95l-9.2 9.19a2 2 0 11-2.83-2.83l8.48-8.48" />
+                    </svg>
+                  </span>
+                  <span>Скрепка</span>
+                </label>
+                <button class="primary" onclick="sendChatMessage()">Отправить</button>
+              </div>
+              <div class="muted" id="chatHint">История сообщений хранится в таблице и доступна всем участникам.</div>
+            </div>
+          </section>
         </div>
       </div>
 
-      <div class="card" id="screenBossMenu" style="display:none;">
+      <div class="card card--narrow" id="screenBossMenu" style="display:none;">
         <div class="top">
           <h1>🧭 Главное меню</h1>
           <button class="ghost" style="flex:0; padding:8px 10px;" onclick="logout()">Выйти</button>
@@ -81,7 +241,7 @@
         </div>
       </div>
 
-      <div class="card" id="screenBossPersonnel" style="display:none;">
+      <div class="card card--narrow" id="screenBossPersonnel" style="display:none;">
         <div class="top">
           <h1>👥 Персонал</h1>
           <button class="ghost" style="flex:0; padding:8px 10px;" onclick="show('screenBossMenu')">Назад</button>
@@ -97,6 +257,17 @@
 
     <script>
       const LS_TOKEN_KEY = 'pilot_session_token_v1';
+      const CHAT_POLL_MS = 15000;
+      const ORDER_LABELS = {
+        'cut-1': 'Задание на раскрой 1',
+        'cut-2': 'Задание на раскрой 2',
+        'assembly': 'Сборка',
+        'pack': 'Упаковка'
+      };
+      let chatPollTimer = null;
+      let currentUser = null;
+      let currentOrderId = 'cut-1';
+      let appReady = false;
 
       function setMsg(elId, text, ok=false) {
         const el = document.getElementById(elId);
@@ -179,6 +350,10 @@
       function logout() {
         const token = getSavedToken();
         try { localStorage.removeItem(LS_TOKEN_KEY); } catch(e) {}
+        if (chatPollTimer) {
+          clearInterval(chatPollTimer);
+          chatPollTimer = null;
+        }
 
         google.script.run
           .withSuccessHandler(() => {
@@ -199,6 +374,7 @@
       }
 
       function showAuthedScreen(u) {
+        currentUser = u;
         const role = (u && u.role) ? String(u.role).trim() : '';
         if (role === 'Начальник') {
           document.getElementById('bossName').textContent = u && u.name ? u.name : '';
@@ -206,6 +382,183 @@
           return;
         }
         show('screenAuthed');
+        initUserApp();
+      }
+
+      function initUserApp() {
+        if (appReady) return;
+        appReady = true;
+        initOrderMenu();
+        setActiveOrder(currentOrderId);
+        initChat();
+        document.addEventListener('click', handleOutsideChatClick);
+      }
+
+      function initOrderMenu() {
+        const buttons = Array.from(document.querySelectorAll('#orderMenu .menu-btn'));
+        buttons.forEach(btn => {
+          btn.addEventListener('click', () => {
+            setActiveOrder(btn.dataset.order || '');
+          });
+        });
+      }
+
+      function setActiveOrder(orderId) {
+        if (!orderId) return;
+        currentOrderId = orderId;
+        const buttons = Array.from(document.querySelectorAll('#orderMenu .menu-btn'));
+        buttons.forEach(btn => {
+          btn.classList.toggle('is-active', btn.dataset.order === orderId);
+        });
+        const label = ORDER_LABELS[orderId] || 'Заявка';
+        document.getElementById('orderTitle').textContent = `Заявка: ${label}`;
+        document.getElementById('orderSubtitle').textContent = `Работаем с заявкой «${label}».`;
+        loadChatMessages();
+      }
+
+      function resetOrderForm() {
+        document.getElementById('orderForm').reset();
+        document.getElementById('orderStatus').textContent = 'Статус: черновик';
+      }
+
+      function saveOrder() {
+        document.getElementById('orderStatus').textContent = 'Статус: сохранено';
+      }
+
+      function initChat() {
+        const header = document.getElementById('chatHeader');
+        header.addEventListener('click', () => {
+          document.getElementById('chatPanel').classList.toggle('minimized');
+        });
+        loadChatMessages();
+        if (chatPollTimer) clearInterval(chatPollTimer);
+        chatPollTimer = setInterval(loadChatMessages, CHAT_POLL_MS);
+      }
+
+      function handleOutsideChatClick(event) {
+        const chatPanel = document.getElementById('chatPanel');
+        if (!chatPanel) return;
+        if (chatPanel.contains(event.target)) return;
+        chatPanel.classList.add('minimized');
+      }
+
+      function setChatStatus(text) {
+        const status = document.getElementById('chatStatus');
+        status.textContent = text;
+      }
+
+      function sendChatMessage() {
+        const token = getSavedToken();
+        const input = document.getElementById('chatInput');
+        const fileInput = document.getElementById('chatFile');
+        const text = input.value.trim();
+        const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+        if (!text && !file) {
+          setChatStatus('Введите сообщение или добавьте фото.');
+          return;
+        }
+
+        setChatStatus('Отправка сообщения...');
+        const payload = { token, chat_id: currentOrderId, text };
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result || '';
+            payload.attachment = {
+              name: file.name,
+              type: file.type,
+              data: String(dataUrl)
+            };
+            submitChatPayload(payload, input, fileInput);
+          };
+          reader.onerror = () => {
+            setChatStatus('Не удалось прочитать файл.');
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        submitChatPayload(payload, input, fileInput);
+      }
+
+      function submitChatPayload(payload, input, fileInput) {
+        google.script.run
+          .withSuccessHandler(res => {
+            if (!res || !res.ok) {
+              setChatStatus((res && res.error) ? res.error : 'Не удалось отправить сообщение.');
+              return;
+            }
+            input.value = '';
+            fileInput.value = '';
+            renderChatMessages(res.messages || []);
+            setChatStatus('Отправлено');
+          })
+          .withFailureHandler(err => {
+            setChatStatus('Ошибка отправки: ' + (err && err.message ? err.message : err));
+          })
+          .apiSendChatMessage(payload);
+      }
+
+      function loadChatMessages() {
+        const token = getSavedToken();
+        google.script.run
+          .withSuccessHandler(res => {
+            if (!res || !res.ok) {
+              setChatStatus((res && res.error) ? res.error : 'Не удалось загрузить чат.');
+              return;
+            }
+            renderChatMessages(res.messages || []);
+            setChatStatus('Обновлено ' + formatDateTime(res.updated_at));
+          })
+          .withFailureHandler(err => {
+            setChatStatus('Ошибка связи: ' + (err && err.message ? err.message : err));
+          })
+          .apiGetChatMessages({ token, chat_id: currentOrderId });
+      }
+
+      function renderChatMessages(messages) {
+        const list = document.getElementById('chatMessages');
+        list.innerHTML = '';
+        if (!messages.length) {
+          const empty = document.createElement('div');
+          empty.className = 'muted';
+          empty.textContent = 'Сообщений пока нет.';
+          list.appendChild(empty);
+          return;
+        }
+        messages.forEach(message => {
+          const wrapper = document.createElement('div');
+          const isOwn = currentUser && message.user_id === currentUser.user_id;
+          wrapper.className = 'chat-message' + (isOwn ? ' is-own' : '');
+
+          if (message.text) {
+            const text = document.createElement('div');
+            text.textContent = message.text;
+            wrapper.appendChild(text);
+          }
+
+          if (message.attachment_url) {
+            const img = document.createElement('img');
+            img.src = message.attachment_url;
+            img.alt = 'Вложение';
+            wrapper.appendChild(img);
+          }
+
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          const author = message.user_name || 'Без имени';
+          const time = formatDateTime(message.created_at);
+          let status = '';
+          if (isOwn) {
+            status = message.read_at ? ' · прочитано' : (message.delivered_at ? ' · доставлено' : '');
+          }
+          meta.textContent = `${author} · ${time}${status}`;
+          wrapper.appendChild(meta);
+          list.appendChild(wrapper);
+        });
+        list.scrollTop = list.scrollHeight;
       }
 
       function openPersonnel() {
