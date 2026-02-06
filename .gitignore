@@ -1,0 +1,31 @@
+# Secrets and credentials
+tmk-corporation-*.json
+
+# Keep these JSON files
+# appsscript.json - Apps Script manifest
+# .clasp.json - clasp config
+
+# Backups
+_backup/
+
+# System files
+nul
+*.tmp
+~$*
+
+# Screenshots and photos (optional, можно убрать если нужны)
+*.PNG
+*.png
+*.jpg
+*.jpeg
+Screenshot 1C/
+
+# Logs
+Логи табеля/
+
+# Node modules (if any)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db

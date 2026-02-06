@@ -1,0 +1,104 @@
+{
+  "name": "Step-to-Step Production Tracker",
+  "description": "Google Apps Script project for tracking glass production stages",
+  "version": "1.0.0",
+  
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/malyshevsergeyr-coder/Step-to-step.git",
+    "branch": "main"
+  },
+  
+  "workflow": {
+    "branchStrategy": "feature-branches",
+    "requireApprovalBeforeMerge": true,
+    "autoSync": false,
+    "testBeforeMerge": true
+  },
+  
+  "git": {
+    "autoCommit": false,
+    "commitMessageTemplate": "[{type}] {description}\n\nDetails:\n- What changed: {changes}\n- Variables: {variables}\n- Reason: {reason}\n- Result: {result}",
+    "defaultBranch": "main",
+    "protectedBranches": ["main", "production"],
+    "alwaysCreateFeatureBranch": true
+  },
+  
+  "googleAppsScript": {
+    "projectId": "AKfycbzXHzPxDyLx26EbRCF6POkMQ5zItn-ivlfMQVgHdS9tbAyLkTCak-mWajX9fxNu9344",
+    "spreadsheetId": "1myrm7Pya1eeesh_qQDk1IyMYtrKZtXUOgiKp8IW-b-A",
+    "deployAfterPush": false,
+    "useClaspForSync": true
+  },
+  
+  "skills": {
+    "enabled": true,
+    "paths": [
+      ".claude/skills/user/project-architecture.md",
+      ".claude/skills/user/development-workflow.md",
+      ".claude/skills/user/technical-requirements.md"
+    ],
+    "autoLoad": true
+  },
+  
+  "files": {
+    "include": [
+      "*.gs",
+      "*.html",
+      "*.md",
+      "*.json"
+    ],
+    "exclude": [
+      "node_modules/",
+      ".git/",
+      "*.log",
+      ".clasp.json"
+    ],
+    "primaryFiles": [
+      "Code.gs",
+      "Index.html"
+    ]
+  },
+  
+  "logging": {
+    "enabled": true,
+    "logFile": "PROJECT_LOG.md",
+    "verboseMode": true,
+    "logCommits": true,
+    "logInterviews": true
+  },
+  
+  "testing": {
+    "requireTestsBeforeMerge": false,
+    "manualTestingRequired": true,
+    "testEnvironment": "development"
+  },
+  
+  "deployment": {
+    "strategy": "manual",
+    "requireApproval": true,
+    "syncToGoogleAppsScript": true,
+    "deploymentSteps": [
+      "git checkout main",
+      "git pull origin main",
+      "git merge feature-branch",
+      "git push origin main",
+      "clasp push"
+    ]
+  },
+  
+  "rules": {
+    "neverCommitDirectlyToMain": true,
+    "alwaysConductInterviewFirst": true,
+    "requireUserApprovalForMerge": true,
+    "documentAllChanges": true,
+    "testInFeatureBranchFirst": true
+  },
+  
+  "context": {
+    "language": "ru",
+    "technicalStack": ["Google Apps Script", "HTML", "CSS", "JavaScript", "Google Sheets"],
+    "projectType": "web-application",
+    "targetUsers": ["Администратор", "Начальник", "Работник"]
+  }
+}

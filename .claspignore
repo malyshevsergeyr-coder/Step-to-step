@@ -1,0 +1,13 @@
+# Игнорировать файлы основного проекта (Движение заказа)
+Code.js
+Index.html
+_backup/**
+
+# Игнорировать служебные файлы
+.claude/**
+*.md
+*.json
+!appsscript.json
+nul
+tmk-corporation-*.json
+Дерево конфигураций/**
